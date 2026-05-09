@@ -2,8 +2,8 @@
  * ============================================================
  *  Oxímetro ESP32 + MAX30102  →  FlutterFlow
  * ============================================================
- *  Autor del equipo: [nombres]
- *  Repo: https://github.com/tu-equipo/tu-repo
+ *  Autor del equipo: Mario Tapia Escamilla
+ *  Repo: https://github.com/MayitusChrist04/Evidencia-Taller-Desarrollo-Apps.git
  *
  *  Librerías requeridas (instalar en Arduino IDE / PlatformIO):
  *    - SparkFun MAX3010x Pulse and Proximity Sensor Library
@@ -24,9 +24,9 @@
 #include "server.h"
 
 // ─── Intervalo de actualización del sensor ────────────────────────────────────
-#define SENSOR_UPDATE_MS  1000   // Actualizar lectura cada 1 segundo
+#define SENSOR_UPDATE_MS  2000   // Actualizar lectura cada 1 segundo
 
-unsigned long lastSensorUpdate = 0;
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 void setup() {
@@ -46,23 +46,18 @@ void setup() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 void loop() {
-  // Atender solicitudes HTTP de la app FlutterFlow
+  // Atender solicitudes HTTP → nunca se bloquea
   handleRequests();
 
-  // Actualizar lectura del sensor periódicamente
-  unsigned long now = millis();
-  if (now - lastSensorUpdate >= SENSOR_UPDATE_MS) {
-    lastSensorUpdate = now;
-
-    if (fingerDetected()) {
-      readSensor();
-    } else {
-      Serial.println("[SENSOR] Dedo no detectado. Esperando...");
-      // Resetear valores cuando no hay contacto
-      spo2      = -1;
-      heartRate = -1;
-      validSPO2      = 0;
-      validHeartRate = 0;
-    }
+  // Agregar una muestra al buffer por iteración
+  if (fingerDetected()) {
+    updateSensor();
+  } else {
+    // Resetear cuando no hay dedo
+    bufferIndex = 0;
+    bufferReady = false;
+    spo2        = -1;
+    heartRate   = -1;
+    validSPO2      = 0;
+    validHeartRate = 0;
   }
-}
