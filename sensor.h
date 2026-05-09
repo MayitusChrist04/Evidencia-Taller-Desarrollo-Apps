@@ -6,7 +6,7 @@
 #include "spo2_algorithm.h" // SparkFun SpO2 algorithm
 
 // ─── Parámetros del algoritmo ────────────────────────────────────────────────
-#define BUFFER_LENGTH     100   // Muestras para el cálculo
+#define BUFFER_LENGTH     50   // Muestras para el cálculo
 #define SPO2_MIN_VALID    85    // % mínimo considerado válido
 #define HR_MIN_VALID      40    // bpm mínimo considerado válido
 #define HR_MAX_VALID      200   // bpm máximo considerado válido
@@ -48,30 +48,34 @@ bool initSensor() {
   return true;
 }
 
-/**
- * Llena los buffers con BUFFER_LENGTH muestras y calcula SpO2 y FC.
- * Debe llamarse desde loop() con la frecuencia adecuada.
- */
-void readSensor() {
-  // Llenar buffer con muestras nuevas
-  for (int i = 0; i < BUFFER_LENGTH; i++) {
-    while (!particleSensor.available()) {
-      particleSensor.check();
-    }
-    redBuffer[i] = particleSensor.getRed();
-    irBuffer[i]  = particleSensor.getIR();
-    particleSensor.nextSample();
+// Buffer index para llenar de forma no bloqueante
+int bufferIndex = 0;
+bool bufferReady = false;
+
+// Llama esta función en cada iteración de loop()
+// Va llenando el buffer de a una muestra por vez
+void updateSensor() {
+  if (!particleSensor.available()) {
+    particleSensor.check();
+    return;
   }
 
-  // Calcular SpO2 y frecuencia cardíaca
-  maxim_heart_rate_and_oxygen_saturation(
-    irBuffer, BUFFER_LENGTH, redBuffer,
-    &spo2, &validSPO2, &heartRate, &validHeartRate
-  );
+  redBuffer[bufferIndex] = particleSensor.getRed();
+  irBuffer[bufferIndex]  = particleSensor.getIR();
+  particleSensor.nextSample();
+  bufferIndex++;
 
-  // Debug en consola serial
-  Serial.printf("[SENSOR] SpO2: %d%% (valido:%d) | FC: %d bpm (valido:%d)\n",
-                spo2, validSPO2, heartRate, validHeartRate);
+  // Cuando el buffer está lleno, calcular SpO2
+  if (bufferIndex >= BUFFER_LENGTH) {
+    bufferIndex = 0;
+    bufferReady = true;
+    maxim_heart_rate_and_oxygen_saturation(
+      irBuffer, BUFFER_LENGTH, redBuffer,
+      &spo2, &validSPO2, &heartRate, &validHeartRate
+    );
+    Serial.printf("[SENSOR] SpO2: %d%% (valido:%d) | FC: %d bpm (valido:%d)\n",
+                  spo2, validSPO2, heartRate, validHeartRate);
+  }
 }
 
 /**
