@@ -7,8 +7,8 @@
 
 // ─── Credenciales WiFi ────────────────────────────────────────────────────────
 // Cambia estos valores o usa variables de entorno / secrets.h
-#define WIFI_SSID     "TU_RED_WIFI"
-#define WIFI_PASSWORD "TU_CONTRASENA"
+#define WIFI_SSID     "iPhone de Mario"
+#define WIFI_PASSWORD "MayitusChrist123"
 
 WebServer server(80);
 
@@ -97,4 +97,4 @@ void handleRequests() {
   server.handleClient();
 }
 
-#endif // SERVER_H
+#endif // SERVER_H 
