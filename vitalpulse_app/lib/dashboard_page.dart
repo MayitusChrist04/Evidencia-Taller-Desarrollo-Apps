@@ -26,7 +26,12 @@ class _DashboardPageState extends State<DashboardPage> {
   int heartRate = 0;
   bool isValid = false;
   bool sensorConnected = false;
-  HealthStatus healthStatus = evaluateSpo2(0); // ← Persona B logic
+  HealthStatus healthStatus = HealthStatus(
+  label: 'Esperando...',
+  color: Colors.grey,
+  recommendation: 'Coloca el sensor para obtener una lectura.',
+  isNormal: false,
+); // ← Persona B logic
 
   final List<double> _pulseTrend = List.filled(10, 72.0);
   final List<int> _spo2Readings = [];
@@ -46,25 +51,34 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   // ── Logic calls (Persona B) ──────────────────────────────────────────────────
-  void _startPolling() {
-    _pollingTimer =
-        Timer.periodic(const Duration(seconds: 1), (_) async {
-      final reading = await fetchSensorReading(); // sensor_logic.dart
-      if (!mounted) return;
-      setState(() {
+void _startPolling() {
+  _pollingTimer =
+      Timer.periodic(const Duration(milliseconds: 500), (_) async {
+    final reading = await fetchSensorReading();
+    if (!mounted) return;
+    setState(() {
+      // Solo desconectar si recibimos SensorReading.empty() 
+      // con spo2 == -99, que es la señal de que el ESP32 no responde
+      if (reading.spo2 == -99) {
+        sensorConnected = false;
+        isValid = false;
+      } else {
+        // ESP32 respondió (spo2 puede ser 0 si no hay dedo)
         sensorConnected = true;
         isValid = reading.isValid;
-        if (reading.isValid && reading.spo2 > 0) {
+
+        if (reading.spo2 > 0) {
           spo2 = reading.spo2;
           heartRate = reading.heartRate;
           _spo2Readings.add(spo2);
           _pulseTrend.removeAt(0);
           _pulseTrend.add(heartRate.toDouble());
-          healthStatus = evaluateSpo2(spo2); // health_logic.dart
+          healthStatus = evaluateSpo2(spo2);
         }
-      });
+      }
     });
-  }
+  });
+}
 
   int get _minSpo2 =>
       _spo2Readings.isEmpty ? 0 : _spo2Readings.reduce(min);
@@ -80,7 +94,8 @@ class _DashboardPageState extends State<DashboardPage> {
           patientName: widget.patientName,
           avgSpo2: _avgSpo2,
           avgHeartRate: heartRate,
-          isNormal: healthStatus.isNormal,
+          // Calcular isNormal directamente desde el promedio
+          isNormal: _avgSpo2 >= 95,
         ),
       ),
     );
